@@ -159,9 +159,17 @@ async def circuit_status():
 
 @app.post("/circuit-reset")
 async def circuit_reset():
-    """Manually reset circuit breaker — useful for demo."""
+    """Manually reset circuit breaker and databases — useful for demo."""
     llm_breaker._reset()
-    return {"message": "Circuit breaker reset to CLOSED", "state": llm_breaker.state.value}
+    # Reset simulated databases back to clean startup state
+    documents_db[1] = {"id": 1, "title": "Lecture Notes", "content": "Original content.", "version": 1}
+    if "user_001" in users_db:
+        users_db["user_001"]["is_premium"] = True
+    processed_webhooks.clear()
+    return {
+        "message": "Circuit breaker and databases reset to initial states",
+        "state": llm_breaker.state.value
+    }
 
 
 # ══════════════════════════════════════════════

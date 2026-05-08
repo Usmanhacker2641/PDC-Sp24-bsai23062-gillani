@@ -129,7 +129,7 @@ async def demo_webhook_idempotency():
 
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=5) as client:
         payload = {
-            "event_id": "evt_clerk_demo_777",
+            "event_id": f"evt_clerk_demo_{int(time.time())}",
             "event_type": "subscription.cancelled",
             "user_id": "user_001",
         }
