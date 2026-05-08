@@ -18,9 +18,9 @@ BASE_URL = "http://localhost:8000"
 
 def print_header(title: str):
     width = 55
-    print("\n" + "═" * width)
+    print("\n" + "=" * width)
     print(f"  {title}")
-    print("═" * width)
+    print("=" * width)
 
 
 def print_result(i: int, status: int, data: dict, elapsed_ms: float):
@@ -57,7 +57,7 @@ async def demo_before():
                 elapsed = (time.monotonic() - start) * 1000
                 print(f"  [{i}] Exception after {elapsed:.0f}ms: {e}")
 
-    print("\n  ⚠️  Each failed request blocked the server for ~2 seconds.")
+    print("\n  [WARN] Each failed request blocked the server for ~2 seconds.")
     print("  With real 60s LLM timeouts, the server would be unusable.")
 
 
@@ -71,7 +71,8 @@ async def demo_after():
         # Reset breaker to CLOSED state
         await client.post("/circuit-reset")
         print("  Circuit reset to CLOSED.\n")
-        print("  Sending 6 requests (threshold=3, LLM is DOWN)...\n")
+        # Since main.py breaker threshold is 5 failures:
+        print("  Sending 6 requests (threshold=5, LLM is DOWN)...\n")
 
         for i in range(1, 7):
             start = time.monotonic()
@@ -82,18 +83,18 @@ async def demo_after():
             elapsed = (time.monotonic() - start) * 1000
             print_result(i, response.status_code, response.json(), elapsed)
 
-            if i == 3:
-                print("\n  🔴 CIRCUIT TRIPPED OPEN after 3 failures!\n")
+            if i == 5:
+                print("\n  [TRIPPED] CIRCUIT TRIPPED OPEN after 5 failures!\n")
 
-        print("\n  ✅ Requests 4-6 returned fallback in <10ms (no LLM contact)")
-        print("  ✅ Server stays responsive for all other users\n")
+        print("\n  [OK] Request 6 returned fallback in <10ms (no LLM contact)")
+        print("  [OK] Server stays responsive for all other users\n")
 
         # Show final circuit status
         status_resp = await client.get("/circuit-status")
         print("  Circuit Breaker Status:", status_resp.json())
 
         # Check X-Student-ID header
-        print(f"\n  📋 X-Student-ID header: {response.headers.get('x-student-id')}")
+        print(f"\n  [INFO] X-Student-ID header: {response.headers.get('x-student-id')}")
 
 
 async def demo_optimistic_lock():
@@ -101,24 +102,25 @@ async def demo_optimistic_lock():
     print_header("BONUS: Optimistic Locking Demo")
 
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=5) as client:
-        # Both users read document version 1
+        # Both users read document
         doc = (await client.get("/documents/1")).json()
-        print(f"  Both users read document at version {doc['version']}")
+        current_version = doc['version']
+        print(f"  Both users read document at version {current_version}")
 
         # User A writes first
         r_a = await client.put(
             "/documents/1",
-            json={"content": "User A's brilliant edit", "version": 1}
+            json={"content": "User A's brilliant edit", "version": current_version}
         )
-        print(f"\n  User A writes → HTTP {r_a.status_code} | new version: {r_a.json()['document']['version']}")
+        print(f"\n  User A writes -> HTTP {r_a.status_code} | new version: {r_a.json()['document']['version']}")
 
         # User B tries to write with stale version
         r_b = await client.put(
             "/documents/1",
-            json={"content": "User B's overwrite attempt", "version": 1}
+            json={"content": "User B's overwrite attempt", "version": current_version}
         )
-        print(f"  User B writes → HTTP {r_b.status_code} | {r_b.json()['detail'][:60]}")
-        print("\n  ✅ Lost update PREVENTED. User B must re-fetch and retry.")
+        print(f"  User B writes -> HTTP {r_b.status_code} | {r_b.json()['detail'][:60]}")
+        print("\n  [OK] Lost update PREVENTED. User B must re-fetch and retry.")
 
 
 async def demo_webhook_idempotency():
@@ -133,25 +135,25 @@ async def demo_webhook_idempotency():
         }
 
         r1 = await client.post("/webhooks/clerk", json=payload)
-        print(f"  1st delivery → status: {r1.json()['status']}")
+        print(f"  1st delivery -> status: {r1.json()['status']}")
         print(f"  User premium: {r1.json()['user']['is_premium']}")
 
         r2 = await client.post("/webhooks/clerk", json=payload)
-        print(f"\n  2nd delivery (duplicate) → status: {r2.json()['status']}")
-        print("  ✅ No double-processing. Idempotency confirmed.")
+        print(f"\n  2nd delivery (duplicate) -> status: {r2.json()['status']}")
+        print("  [OK] No double-processing. Idempotency confirmed.")
 
 
 async def main():
-    print("\n" + "█" * 55)
+    print("\n" + "#" * 55)
     print("  StudySync — Resilient Distributed Systems Demo")
     print("  Muhammad Usman Gillani | bsai23062")
-    print("█" * 55)
+    print("#" * 55)
 
     try:
         async with httpx.AsyncClient(base_url=BASE_URL, timeout=3) as c:
             await c.get("/")
     except Exception:
-        print("\n  ❌ Server not reachable. Start it first:")
+        print("\n  [ERROR] Server not reachable. Start it first:")
         print("     uvicorn main:app --reload")
         return
 
@@ -163,9 +165,9 @@ async def main():
     await asyncio.sleep(1)
     await demo_webhook_idempotency()
 
-    print("\n" + "═" * 55)
+    print("\n" + "=" * 55)
     print("  Demo complete. All three patterns demonstrated.")
-    print("═" * 55 + "\n")
+    print("=" * 55 + "\n")
 
 
 if __name__ == "__main__":
