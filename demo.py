@@ -71,8 +71,8 @@ async def demo_after():
         # Reset breaker to CLOSED state
         await client.post("/circuit-reset")
         print("  Circuit reset to CLOSED.\n")
-        # Since main.py breaker threshold is 5 failures:
-        print("  Sending 6 requests (threshold=5, LLM is DOWN)...\n")
+        # Since main.py breaker threshold is 3 failures:
+        print("  Sending 6 requests (threshold=3, LLM is DOWN)...\n")
 
         for i in range(1, 7):
             start = time.monotonic()
@@ -83,8 +83,8 @@ async def demo_after():
             elapsed = (time.monotonic() - start) * 1000
             print_result(i, response.status_code, response.json(), elapsed)
 
-            if i == 5:
-                print("\n  [TRIPPED] CIRCUIT TRIPPED OPEN after 5 failures!\n")
+            if i == 3:
+                print("\n  [TRIPPED] CIRCUIT TRIPPED OPEN after 3 failures!\n")
 
         print("\n  [OK] Request 6 returned fallback in <10ms (no LLM contact)")
         print("  [OK] Server stays responsive for all other users\n")

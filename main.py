@@ -49,7 +49,7 @@ processed_webhooks: set[str] = set()   # idempotency store
 # Circuit Breaker instance (shared across requests)
 # ──────────────────────────────────────────────
 llm_breaker = CircuitBreaker(
-    failure_threshold=5,     # trip after 5 failures
+    failure_threshold=3,     # trip after 3 failures
     cooldown_seconds=30.0,   # reopen after 30 seconds (standard cooldown)
     success_threshold=1,
 )

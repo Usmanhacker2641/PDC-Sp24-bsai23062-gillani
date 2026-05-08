@@ -74,8 +74,8 @@ async def test_circuit_breaker_six_requests_flow(client):
     # 1. Patch the raw LLM call to always raise a ConnectError
     with patch("main._call_llm", side_effect=ConnectError("Mock LLM is dead")):
         
-        # Fire first 5 requests
-        for i in range(1, 6):
+        # Fire first 3 requests
+        for i in range(1, 4):
             start_time = time.monotonic()
             response = await client.post("/ask-llm", json={"prompt": f"Test {i}", "timeout": 2.0})
             elapsed = time.monotonic() - start_time
@@ -89,18 +89,19 @@ async def test_circuit_breaker_six_requests_flow(client):
         # Circuit should now be OPEN
         assert llm_breaker.state.value == "OPEN"
 
-        # Fire 6th request
-        start_time = time.monotonic()
-        response = await client.post("/ask-llm", json={"prompt": "Test 6", "timeout": 2.0})
-        elapsed = time.monotonic() - start_time
+        # Fire requests 4, 5, 6
+        for i in range(4, 7):
+            start_time = time.monotonic()
+            response = await client.post("/ask-llm", json={"prompt": f"Test {i}", "timeout": 2.0})
+            elapsed = time.monotonic() - start_time
 
-        # Assert 6th returns fallback response instantly (503 status code)
-        assert response.status_code == 503
-        assert response.json()["source"] == "fallback"
-        assert response.json()["circuit_state"] == "OPEN"
-        assert elapsed < 0.1, f"6th request was not instant, took {elapsed:.4f}s"
-        # Check X-Student-ID header on the 6th response
-        assert response.headers.get("X-Student-ID") == "bsai23062"
+            # Assert they return fallback response instantly (503 status code)
+            assert response.status_code == 503
+            assert response.json()["source"] == "fallback"
+            assert response.json()["circuit_state"] == "OPEN"
+            assert elapsed < 0.1, f"Request {i} was not instant, took {elapsed:.4f}s"
+            # Check X-Student-ID header on the response
+            assert response.headers.get("X-Student-ID") == "bsai23062"
 
 
 @pytest.mark.asyncio
