@@ -112,8 +112,9 @@ class LLMRequest(BaseModel):
 
 
 async def _call_llm(prompt: str, timeout: float) -> dict:
-    """Raw LLM call. Call real Gemini API if key is present, otherwise hit unreachable mock URL."""
-    if GEMINI_API_KEY:
+    """Raw LLM call. Call real Gemini API if key is present and not a demo question, otherwise hit unreachable mock URL."""
+    # For demo simulations (using prompt starting with 'Question'), we bypass real Gemini to force a failure and show the circuit tripping.
+    if GEMINI_API_KEY and not prompt.strip().startswith("Question"):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
