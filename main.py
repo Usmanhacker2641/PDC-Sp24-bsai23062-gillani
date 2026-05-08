@@ -9,6 +9,7 @@ Implements:
   - Idempotent Webhook handler (Problem 2: Coordination)
 """
 
+import os
 import time
 import asyncio
 from contextlib import asynccontextmanager
@@ -20,6 +21,19 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from circuit_breaker import CircuitBreaker, CircuitOpenError
+
+# Manual .env loader to avoid external dependencies
+def load_env():
+    if os.path.exists(".env"):
+        with open(".env", "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ[key.strip()] = val.strip()
+
+load_env()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # ──────────────────────────────────────────────
 # In-memory "database" (simulates SQLite/Postgres)
@@ -98,14 +112,28 @@ class LLMRequest(BaseModel):
 
 
 async def _call_llm(prompt: str, timeout: float) -> dict:
-    """Raw LLM call — no protection. Will hang/fail when LLM is down."""
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(
-            LLM_API_URL,
-            json={"prompt": prompt},
-        )
-        response.raise_for_status()
-        return response.json()
+    """Raw LLM call. Call real Gemini API if key is present, otherwise hit unreachable mock URL."""
+    if GEMINI_API_KEY:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                url,
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+            )
+            response.raise_for_status()
+            res_json = response.json()
+            # Extract content text from Gemini payload structure
+            text = res_json["candidates"][0]["content"]["parts"][0]["text"]
+            return {"text": text}
+    else:
+        # Fallback to unreachable URL (causes timeout/refusal for breaker demos)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                LLM_API_URL,
+                json={"prompt": prompt},
+            )
+            response.raise_for_status()
+            return response.json()
 
 
 FALLBACK_RESPONSE = {
