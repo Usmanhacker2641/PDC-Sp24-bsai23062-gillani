@@ -28,7 +28,7 @@ Every response includes the mandatory `X-Student-ID: bsai23062` header via FastA
 ### 1. Clone and install dependencies
 
 ```bash
-git clone https://github.com/<your-username>/PDC-Sp24-bsai23062-Gillani.git
+git clone https://github.com/Usmanhacker2641/PDC-Sp24-bsai23062-gillani.git
 cd PDC-Sp24-bsai23062-Gillani
 
 pip install -r requirements.txt
